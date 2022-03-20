@@ -40,10 +40,10 @@ def get_patch(img, center, sz):
 
 def create_epanechnik_kernel(width, height, sigma):
     # make sure that width and height are odd
-    w2 = int(math.floor(width / 2))
-    h2 = int(math.floor(height / 2))
+    w2 = int(math.ceil(width / 2))
+    h2 = int(math.ceil(height / 2))
 
-    [X, Y] = np.meshgrid(np.arange(-w2, w2 + 1), np.arange(-h2, h2 + 1))
+    [X, Y] = np.meshgrid(np.arange(-w2, w2 - 1), np.arange(-h2, h2 - 1))
     X = X / np.max(X)
     Y = Y / np.max(Y)
 

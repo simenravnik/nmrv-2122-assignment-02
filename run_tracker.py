@@ -3,18 +3,18 @@ import time
 import cv2
 
 from sequence_utils import VOTSequence
-from ncc_tracker_example import NCCTracker, NCCParams
-#from ms_tracker import MeanShiftTracker, MSParams
+# from ncc_tracker_example import NCCTracker, NCCParams
+from ms_tracker import MeanShiftTracker, MSParams
 
 
 # set the path to directory where you have the sequences
-dataset_path = '' # TODO: set to the dataet path on your disk
-sequence = 'bolt1'  # choose the sequence you want to test
+dataset_path = './data/' # TODO: set to the dataet path on your disk
+sequence = 'bolt'  # choose the sequence you want to test
 
 # visualization and setup parameters
 win_name = 'Tracking window'
 reinitialize = True
-show_gt = False
+show_gt = True
 video_delay = 15
 font = cv2.FONT_HERSHEY_PLAIN
 
@@ -23,10 +23,11 @@ sequence = VOTSequence(dataset_path, sequence)
 init_frame = 0
 n_failures = 0
 # create parameters and tracker objects
-parameters = NCCParams()
-tracker = NCCTracker(parameters)
-#parameters = MSParams()
-#tracker = MeanShiftTracker(parameters)
+# parameters = NCCParams()
+# tracker = NCCTracker(parameters)
+# tryckerType = "NCC"
+parameters = MSParams()
+tracker = MeanShiftTracker(parameters)
 
 time_all = 0
 
@@ -46,7 +47,7 @@ while frame_idx < sequence.length():
     else:
         # track on current frame - predict bounding box
         t_ = time.time()
-        predicted_bbox = tracker.track(img)
+        predicted_bbox, _ = tracker.track(img)
         time_all += time.time() - t_
 
     # calculate overlap (needed to determine failure of a tracker)

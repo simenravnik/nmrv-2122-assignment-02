@@ -14,11 +14,14 @@ def reshape_patch(patch):
     return patch
 
 
+def get_odd_size(size):
+    return math.ceil(size[0] / 2.) * 2 - 1, math.ceil(size[1] / 2.) * 2 - 1
+
+
 def mean_shift(frame, kernel, position, nbins, q, size, eps):
 
     # Round to odd number
-    kernel_size_x = math.ceil(size[0] / 2.) * 2 - 1
-    kernel_size_y = math.ceil(size[1] / 2.) * 2 - 1
+    kernel_size_x, kernel_size_y = get_odd_size(size)
 
     # Caculate the derivatives of size of kernel
     xi_X = np.array([list(range(-math.floor(kernel_size_x / 2), math.floor(kernel_size_x / 2) + 1)) for i in range(kernel_size_y)])
@@ -84,7 +87,7 @@ class MeanShiftTracker(Tracker):
 
         self.patch = image[int(top):int(bottom), int(left):int(right)]
         self.position = (region[0] + region[2] / 2, region[1] + region[3] / 2)
-        self.size = (region[2], region[3])
+        self.size = get_odd_size((region[2], region[3]))
 
         # Epanechnikov kernel
         self.kernel = create_epanechnik_kernel(self.size[0], self.size[1], self.parameters.sigma)
