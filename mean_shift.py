@@ -215,6 +215,42 @@ def try_different_parameters(responses):
         print(position, iters)
 
 
+def plot_graph():
+    # x axis values
+    x = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+
+    # sigma = 0.4
+    y1 = [0, 2, 4, 5, 5, 5, 6, 5, 6, 6, 8]
+
+    # sigma = 0.6
+    y2 = [0, 2, 2, 3, 4, 4, 6, 6, 6, 7, 7]
+
+    # sigma = 1
+    y3 = [0, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6]
+
+    fig = plt.figure(figsize=(12, 8), facecolor="white", dpi=160)
+
+    color = ["#ff71ce", "#01cdfe", "#05ffa1", "#b967ff", "#fffb96"]
+    plt.plot(x, y1, color=color[0], linestyle='dashed', linewidth = 3,
+            marker='o', markerfacecolor=color[0], markersize=12, alpha=0.7, label="sigma = 0.4")
+
+    plt.plot(x, y2, color=color[1], linestyle='dashed', linewidth = 3,
+            marker='o', markerfacecolor=color[1], markersize=12, alpha=0.7, label="sigma = 0.6")
+
+    plt.plot(x, y3, color=color[2], linestyle='dashed', linewidth = 3,
+            marker='o', markerfacecolor=color[2], markersize=12, alpha=0.7, label="sigma = 1")
+    
+    # naming the x axis
+    plt.xlabel('Alpha')
+    # naming the y axis
+    plt.ylabel('Number of failures')
+
+    plt.legend(["Sigma = 0.4", "Sigma = 0.6", "Sigma = 1"])
+    
+    # function to show the plot
+    plt.savefig("./img/parameters-2.png", bbox_inches='tight')
+    plt.show()
+
 def run():
     responses = generate_responses_1()
     size = (13, 13)
@@ -247,6 +283,9 @@ def run():
 
     # Parameters
     try_different_parameters(responses)
+
+    # Graph
+    plot_graph()
 
 
 if __name__=="__main__":
