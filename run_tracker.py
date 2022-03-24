@@ -8,7 +8,7 @@ from ms_tracker import MeanShiftTracker, MSParams
 
 
 # set the path to directory where you have the sequences
-dataset_path = './data/' # TODO: set to the dataet path on your disk
+dataset_path = './vot2014/' # TODO: set to the dataet path on your disk
 sequence = 'bolt'  # choose the sequence you want to test
 
 # visualization and setup parameters
@@ -47,7 +47,7 @@ while frame_idx < sequence.length():
     else:
         # track on current frame - predict bounding box
         t_ = time.time()
-        predicted_bbox, _ = tracker.track(img)
+        predicted_bbox = tracker.track(img)
         time_all += time.time() - t_
 
     # calculate overlap (needed to determine failure of a tracker)

@@ -1,31 +1,20 @@
-from math import floor
-
 import numpy as np
 import cv2
 
 from ex2_utils import get_patch, create_epanechnik_kernel, extract_histogram, backproject_histogram, Tracker
 import math
 
-def reshape_patch(patch):
-    if patch.shape[0] % 2 == 0:
-        patch = patch[:-1, :]
-    if patch.shape[1] % 2 == 0:
-        patch = patch[:, :-1]
-    return patch
 
-
-def get_odd_size(size):
-    return math.ceil(size[0] / 2.) * 2 - 1, math.ceil(size[1] / 2.) * 2 - 1
+def normalize(hist):
+    sum_hist = sum(hist)
+    return np.array([i / sum_hist for i in hist])
 
 
 def mean_shift(frame, kernel, position, nbins, q, size, eps):
 
-    # Round to odd number
-    kernel_size_x, kernel_size_y = get_odd_size(size)
-
     # Caculate the derivatives of size of kernel
-    xi_X = np.array([list(range(-math.floor(kernel_size_x / 2), math.floor(kernel_size_x / 2) + 1)) for i in range(kernel_size_y)])
-    xi_Y = np.array([list(range(-math.floor(kernel_size_y / 2), math.floor(kernel_size_y / 2) + 1)) for i in range(kernel_size_x)]).T
+    xi_X = np.array([list(range(-math.floor(size[0] / 2), math.floor(size[0] / 2) + 1)) for i in range(size[1])])
+    xi_Y = np.array([list(range(-math.floor(size[1] / 2), math.floor(size[1] / 2) + 1)) for i in range(size[0])]).T
 
     iter_count = 0
     positions = []
@@ -33,16 +22,13 @@ def mean_shift(frame, kernel, position, nbins, q, size, eps):
     while True:
 
         # Cut patch of the new position
-        patch, _ = get_patch(frame, position, (kernel_size_x, kernel_size_y))
-        patch = reshape_patch(patch)
+        patch, _ = get_patch(frame, position, size)
         
         # Extract histogram p
-        hist = extract_histogram(patch, nbins, weights=kernel)
-        hist_sum = sum(hist)
-        p = np.array([i / hist_sum for i in hist])
+        p = normalize(extract_histogram(patch, nbins, weights=kernel))
 
         # Calculate weights v
-        v = np.sqrt(np.divide(q, (p + eps)))
+        v = np.sqrt(np.divide(q, (p + 0.001)))
 
         # Calculate wi using backprojection
         wi = backproject_histogram(patch, v, nbins)
@@ -56,11 +42,10 @@ def mean_shift(frame, kernel, position, nbins, q, size, eps):
         positions.append(tuple(map(int, np.floor(position))))
 
         # Check if the algorithm converged
-        if abs(xk_X) < eps and abs(xk_Y) < eps:
+        if math.sqrt(xk_X ** 2 + xk_X ** 2) < eps:
             break
 
-        # Sanity check if the algorihtm does not converge
-        if iter_count >= 500:
+        if iter_count >= 20:
             break
 
         iter_count += 1
@@ -71,43 +56,19 @@ def mean_shift(frame, kernel, position, nbins, q, size, eps):
 class MeanShiftTracker(Tracker):
 
     def initialize(self, image, region):
-
-        if len(region) == 8:
-            x_ = np.array(region[::2])
-            y_ = np.array(region[1::2])
-            region = [np.min(x_), np.min(y_), np.max(x_) - np.min(x_) + 1, np.max(y_) - np.min(y_) + 1]
-
-        self.window = max(region[2], region[3]) * self.parameters.enlarge_factor
-
-        left = max(region[0], 0)
-        top = max(region[1], 0)
-
-        right = min(region[0] + region[2], image.shape[1] - 1)
-        bottom = min(region[1] + region[3], image.shape[0] - 1)
-
-        self.patch = image[int(top):int(bottom), int(left):int(right)]
-        self.position = (region[0] + region[2] / 2, region[1] + region[3] / 2)
-        self.size = get_odd_size((region[2], region[3]))
+        
+        self.position = (region[0] + region[2] // 2, region[1] + region[3] // 2)
+        self.size = (math.floor(region[2]) // 2 * 2 + 1, math.floor(region[3]) // 2 * 2 + 1)
+        self.patch, _ = get_patch(image, self.position, self.size)
 
         # Epanechnikov kernel
         self.kernel = create_epanechnik_kernel(self.size[0], self.size[1], self.parameters.sigma)
 
         # Initial value of q (Normalised extracted histogram)
-        hist = extract_histogram(reshape_patch(self.patch), self.parameters.nbins, weights=self.kernel)
-        hist_sum = sum(hist)
-        self.q = np.array([i / hist_sum for i in hist])     # Normalized histogram
+        self.q = normalize(extract_histogram(self.patch, self.parameters.nbins, weights=self.kernel))
 
     def track(self, image):
 
-        left = max(round(self.position[0] - float(self.window) / 2), 0)
-        top = max(round(self.position[1] - float(self.window) / 2), 0)
-
-        right = min(round(self.position[0] + float(self.window) / 2), image.shape[1] - 1)
-        bottom = min(round(self.position[1] + float(self.window) / 2), image.shape[0] - 1)
-
-        if right - left < self.patch.shape[1] or bottom - top < self.patch.shape[0]:
-            return [self.position[0] + self.size[0] / 2, self.position[1] + self.size[1] / 2, self.size[0], self.size[1]], 0
-        
         # Calculate new positions of the patch using mean shift algorithm
         new_position, iter_count, _ = mean_shift(image, self.kernel, self.position, self.parameters.nbins, self.q, self.size, self.parameters.eps)
 
@@ -115,22 +76,20 @@ class MeanShiftTracker(Tracker):
         self.patch, _ = get_patch(image, new_position, self.size)
 
         # Update q
-        hist = extract_histogram(reshape_patch(self.patch), self.parameters.nbins, weights=self.kernel)
-        hist_sum = sum(hist)
-        normalized_hist = np.array([i / hist_sum for i in hist])
-        self.q = (1 - self.parameters.alpha) * self.q + self.parameters.alpha * normalized_hist
+        hist = normalize(extract_histogram(self.patch, self.parameters.nbins, weights=self.kernel))
+        self.q = (1 - self.parameters.alpha) * self.q + self.parameters.alpha * hist
         
         # Update position values
         self.position = new_position
 
         # Return the values
-        return [int(new_position[0] - self.size[0] // 2), int(new_position[1] - self.size[1] // 2), self.size[0], self.size[1]], iter_count
+        return [int(new_position[0] - self.size[0] // 2), int(new_position[1] - self.size[1] // 2), self.size[0], self.size[1]]
 
 
 class MSParams():
     def __init__(self):
-        self.enlarge_factor = 2
+        self.enlarge_factor = 1
         self.nbins = 16
         self.eps = 1
-        self.sigma = 0.5
-        self.alpha = 0.5
+        self.sigma = 0.4
+        self.alpha = 0.05
